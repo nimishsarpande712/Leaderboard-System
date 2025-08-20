@@ -4,6 +4,7 @@ import { io } from 'socket.io-client';
 import Leaderboard from './components/Leaderboard.jsx';
 import ClaimPanel from './components/ClaimPanel.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
+import './styles.css';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000/api';
 
@@ -15,6 +16,14 @@ export default function App() {
   const [selectedUser, setSelectedUser] = useState('');
   const [awarded, setAwarded] = useState(null);
   const [loadingClaim, setLoadingClaim] = useState(false);
+  const initialPrimary = () => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || localStorage.getItem('primaryTab') || 'live';
+  };
+  const initialSub = () => localStorage.getItem('subTab') || 'contribution';
+  const [primaryTab, setPrimaryTab] = useState(initialPrimary); // live | party | hourly | family | wealth
+  const [subTab, setSubTab] = useState(initialSub); // contribution | tasks
+  const [settlementText, setSettlementText] = useState('');
 
   const fetchUsers = useCallback(async () => {
     const res = await axios.get(`${API_BASE}/users`);
@@ -62,23 +71,82 @@ export default function App() {
     }
   }
 
+  // compute settlement timers (mock): live -> 2 days, party weekly -> 2 days, etc.
+  function getSettlementText() {
+    const now = Date.now();
+    let end; // pick 2 days from now for demo
+    end = now + 1000 * 60 * 60 * 24 * 2 + 1000 * 60 * 60 * 1 + 1000 * 60 * 45; // 2d 1h45m
+    const diff = end - now;
+    const d = Math.floor(diff / (24*3600*1000));
+    const h = Math.floor((diff % (24*3600*1000)) / (3600*1000));
+    const m = Math.floor((diff % (3600*1000)) / (60*1000));
+    const s = Math.floor((diff % (60*1000)) / 1000);
+    return `${d} days ${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  useEffect(() => {
+    const update = () => setSettlementText(getSettlementText());
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  // persist tab state
+  useEffect(() => {
+    localStorage.setItem('primaryTab', primaryTab);
+    const params = new URLSearchParams(window.location.search);
+    params.set('tab', primaryTab);
+    const url = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState({}, '', url);
+  }, [primaryTab]);
+  useEffect(() => { localStorage.setItem('subTab', subTab); }, [subTab]);
+
+  const themeClass = `app-shell theme-${primaryTab}`;
+
   return (
-    <div style={{ display:'flex', flexDirection:'column', flex:1 }}>
-      <header style={{ padding:'1rem 1.5rem', background:'#fff', boxShadow:'0 2px 4px rgba(0,0,0,0.06)', display:'flex', alignItems:'center', gap:'1rem' }}>
-        <h1 style={{ fontSize:20, margin:0 }}>Live Ranking</h1>
+    <div className={themeClass}>
+      {/* Sticky Header / Timer Bar */}
+      <header className="top-header">
+        <div className="brand-area">
+          <span className="brand-accent">⚡</span>
+          <span className="brand-title">Hourly Ranking</span>
+        </div>
+        <div className="header-spacer" />
+        <div className="timer-pill" aria-label="settlement timer">
+          <span className="timer-label">Settlement</span>
+          <span className="timer-value">{settlementText}</span>
+        </div>
       </header>
-      <main style={{ display:'grid', gap:'1.5rem', padding:'1.5rem', gridTemplateColumns:'repeat(auto-fit,minmax(340px,1fr))', flex:1 }}>
-        <section style={{ background:'#fff', borderRadius:16, padding:'1rem 1.25rem', display:'flex', flexDirection:'column', gap:'1rem' }}>
+
+      {/* Primary Tabs (optional ranking types) */}
+      <nav className="primary-tabs">
+        {['party','live','hourly','family','wealth'].map(tab => (
+          <button key={tab} className={"primary-tab" + (primaryTab===tab? ' active':'')} onClick={()=>setPrimaryTab(tab)}>
+            {tab.charAt(0).toUpperCase()+tab.slice(1)}
+          </button>
+        ))}
+      </nav>
+
+      <div className="subtab-bar">
+        <div className="subtabs">
+          <button className={subTab==='contribution'? 'subtab active':'subtab'} onClick={()=>setSubTab('contribution')}>Contribution</button>
+          <button className={subTab==='tasks'? 'subtab active':'subtab'} onClick={()=>setSubTab('tasks')}>Tasks</button>
+        </div>
+        <div className="rewards-btn" role="button">Rewards</div>
+      </div>
+
+      <main className="grid-layout">
+        <section className="panel leaderboard-panel" data-section="leaderboard">
+          <Leaderboard data={leaderboard} currentUserId={selectedUser} />
+        </section>
+        <section className="panel claim-panel" data-section="claim">
           <ClaimPanel users={users} selectedUser={selectedUser} setSelectedUser={setSelectedUser} onClaim={handleClaim} awarded={awarded} loading={loadingClaim} onAddUser={handleAddUser} />
         </section>
-        <section style={{ background:'#fff', borderRadius:16, padding:'1rem 1.25rem', display:'flex', flexDirection:'column', gap:'1rem', maxHeight:'70vh', overflow:'auto' }}>
-          <Leaderboard data={leaderboard} />
-        </section>
-        <section style={{ background:'#fff', borderRadius:16, padding:'1rem 1.25rem', display:'flex', flexDirection:'column', gap:'1rem', maxHeight:'70vh', overflow:'auto' }}>
+        <section className="panel history-panel" data-section="history">
           <HistoryPanel />
         </section>
       </main>
-      <footer style={{ textAlign:'center', padding:'0.75rem', fontSize:12, color:'#666' }}>Leaderboard System Demo</footer>
+      <footer className="app-footer">Leaderboard System Demo</footer>
     </div>
   );
 }

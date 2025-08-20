@@ -42,8 +42,19 @@ app.post('/api/users/:userId/claim', async (req, res, next) => {
   await sendLeaderboard();
 });
 
+const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://nimimuguciaz9241:5EF7JqqWUJ3TGZ27@cluster0.idxvp9d.mongodb.net/leaderboard?retryWrites=true&w=majority&appName=Cluster0';
+
+// Guard: mongodb+srv URIs must NOT include an explicit port number
+if (MONGO_URI.startsWith('mongodb+srv://')) {
+  const hostPart = MONGO_URI.replace('mongodb+srv://','').split('/')[0]; // user:pass@host
+  const afterAt = hostPart.split('@').pop();
+  if(/:\d+/.test(afterAt)) {
+    console.error('\nInvalid MONGO_URI: mongodb+srv style connection strings cannot include a port. Remove ":<port>".');
+    process.exit(1);
+  }
+}
+
 const PORT = process.env.PORT || 4000;
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/leaderboard';
 
 connectDB(MONGO_URI).then(() => {
   server.listen(PORT, () => console.log('Server listening on', PORT));
