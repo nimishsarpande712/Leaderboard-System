@@ -10,16 +10,15 @@ import { User } from './models/User.js';
 dotenv.config();
 
 const app = express();
-// CORS: allow explicit client origin plus localhost for dev; fall back to * if none provided
-const clientOrigin = process.env.CLIENT_ORIGIN;
-const allowedOrigins = [clientOrigin, 'http://localhost:5173', 'http://127.0.0.1:5173'].filter(Boolean);
+// CORS: explicit frontend origin (Render) with optional override via CLIENT_ORIGIN env
+const FRONTEND_ORIGIN = process.env.CLIENT_ORIGIN || 'https://leaderboard-system-1-1j3g.onrender.com';
 app.use(cors({
-  origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error('CORS not allowed for origin: ' + origin));
-  },
+  origin: FRONTEND_ORIGIN,
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   credentials: true
 }));
+// Optional: handle preflight for all
+app.options('*', cors({ origin: FRONTEND_ORIGIN, credentials:true }));
 app.use(express.json());
 
 app.get('/', (req,res)=> res.send('Leaderboard API running'));
@@ -27,7 +26,7 @@ app.get('/health', (_req,res)=> res.json({ ok:true }));
 app.use('/api/users', userRoutes);
 
 const server = http.createServer(app);
-const io = new Server(server, { cors: { origin: '*' } });
+const io = new Server(server, { cors: { origin: FRONTEND_ORIGIN, methods:['GET','POST'] } });
 
 io.on('connection', (socket) => {
   // send initial leaderboard

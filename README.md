@@ -66,8 +66,9 @@ Visit: http://localhost:5173
 
 Environment override (`Frontend/.env`):
 ```
-VITE_API_BASE=http://localhost:4000/api
+VITE_API_BASE_URL=http://localhost:4000
 ```
+Do NOT append `/api` – calls add it (e.g. `fetch(`${API}/api/users`)`).
 
 Build production bundle:
 ```
@@ -103,7 +104,7 @@ Health check: open base URL (`/`) should show `Leaderboard API running`.
 3. Build Command: `npm install && npm run build`  
 4. Publish Directory: `dist`  
 5. Add Environment Variable:  
-	- `VITE_API_BASE` = `https://leaderboard-api.onrender.com/api` (replace with your backend URL)  
+	- `VITE_API_BASE_URL` = `https://leaderboard-api.onrender.com` (no trailing /api)  
 6. Deploy.  
 
 Render handles CDN + compression automatically.
@@ -131,8 +132,16 @@ npm run dev
 # Frontend (new terminal)
 cd ../Frontend
 npm install
-echo VITE_API_BASE=http://localhost:4000/api > .env
+echo VITE_API_BASE_URL=http://localhost:4000 > .env
 npm run dev
+```
+
+### Frontend API Helper Example
+```
+// src/lib/api.js
+const API = import.meta.env.VITE_API_BASE_URL; // e.g. https://your-backend.onrender.com
+export const get = (path) => fetch(`${API}${path}`).then(r => r.json());
+// Usage: get('/api/users')
 ```
 
 ## 📡 Real-Time Flow
