@@ -1,14 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import axios from 'axios';
 import { io } from 'socket.io-client';
+import { api, SOCKET_ORIGIN } from './lib/api.js';
 import Leaderboard from './components/Leaderboard.jsx';
 import ClaimPanel from './components/ClaimPanel.jsx';
 import HistoryPanel from './components/HistoryPanel.jsx';
 import './styles.css';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000/api';
-
-const socket = io(API_BASE.replace('/api',''));
+// Base API paths now derive from api.base and expect explicit /api prefix in calls
+const socket = io(SOCKET_ORIGIN);
 
 export default function App() {
   const [users, setUsers] = useState([]);
@@ -26,14 +25,14 @@ export default function App() {
   const [settlementText, setSettlementText] = useState('');
 
   const fetchUsers = useCallback(async () => {
-    const res = await axios.get(`${API_BASE}/users`);
-    setUsers(res.data);
-    if (!selectedUser && res.data.length) setSelectedUser(res.data[0]._id);
+  const data = await api.get('/api/users');
+  setUsers(data);
+  if (!selectedUser && data.length) setSelectedUser(data[0]._id);
   }, [selectedUser]);
 
   const fetchLeaderboard = useCallback(async () => {
-    const res = await axios.get(`${API_BASE}/users/leaderboard/list`);
-    setLeaderboard(res.data);
+  const data = await api.get('/api/users/leaderboard/list');
+  setLeaderboard(data);
   }, []);
 
   useEffect(() => {
@@ -53,21 +52,21 @@ export default function App() {
     setLoadingClaim(true);
     setAwarded(null);
     try {
-      const res = await axios.post(`${API_BASE}/users/${selectedUser}/claim`);
-      setAwarded(res.data.awarded);
+  const res = await api.post(`/api/users/${selectedUser}/claim`);
+  setAwarded(res.awarded);
       fetchUsers(); // update totals maybe
     } catch (e) {
-      alert(e.response?.data?.error || e.message);
+  alert(e.message);
     } finally { setLoadingClaim(false); }
   }
 
   async function handleAddUser(name) {
     if(!name) return;
     try {
-      await axios.post(`${API_BASE}/users`, { name });
+  await api.post(`/api/users`, { name });
       fetchUsers();
     } catch (e) {
-      alert(e.response?.data?.error || e.message);
+  alert(e.message);
     }
   }
 

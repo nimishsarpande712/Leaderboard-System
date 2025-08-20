@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:4000/api';
+import { api } from '../lib/api.js';
 
 export default function HistoryPanel() {
   const [history, setHistory] = useState([]);
@@ -13,10 +11,10 @@ export default function HistoryPanel() {
   async function load(p = 1) {
     setLoading(true);
     try {
-      const res = await axios.get(`${API_BASE}/users/history?page=${p}&limit=${limit}`);
-      setHistory(res.data.items);
-      setTotal(res.data.total);
-      setPage(res.data.page);
+  const res = await api.get(`/api/users/history?page=${p}&limit=${limit}`);
+  setHistory(res.items);
+  setTotal(res.total);
+  setPage(res.page);
     } finally { setLoading(false); }
   }
 

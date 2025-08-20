@@ -10,10 +10,20 @@ import { User } from './models/User.js';
 dotenv.config();
 
 const app = express();
-app.use(cors({ origin: '*'}));
+// CORS: allow explicit client origin plus localhost for dev; fall back to * if none provided
+const clientOrigin = process.env.CLIENT_ORIGIN;
+const allowedOrigins = [clientOrigin, 'http://localhost:5173', 'http://127.0.0.1:5173'].filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('CORS not allowed for origin: ' + origin));
+  },
+  credentials: true
+}));
 app.use(express.json());
 
 app.get('/', (req,res)=> res.send('Leaderboard API running'));
+app.get('/health', (_req,res)=> res.json({ ok:true }));
 app.use('/api/users', userRoutes);
 
 const server = http.createServer(app);
@@ -42,7 +52,8 @@ app.post('/api/users/:userId/claim', async (req, res, next) => {
   await sendLeaderboard();
 });
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb+srv://nimimuguciaz9241:5EF7JqqWUJ3TGZ27@cluster0.idxvp9d.mongodb.net/leaderboard?retryWrites=true&w=majority&appName=Cluster0';
+// Support both MONGO_URI and MONGODB_URI env names
+const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI 
 
 // Guard: mongodb+srv URIs must NOT include an explicit port number
 if (MONGO_URI.startsWith('mongodb+srv://')) {

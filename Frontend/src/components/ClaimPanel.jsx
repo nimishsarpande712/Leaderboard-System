@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
+import Dropdown from './Dropdown.jsx';
 
 export default function ClaimPanel({ users, selectedUser, setSelectedUser, onClaim, awarded, loading, onAddUser }) {
   const [newUser, setNewUser] = useState('');
@@ -6,13 +7,13 @@ export default function ClaimPanel({ users, selectedUser, setSelectedUser, onCla
     <div className="claim-root">
       <h2 className="panel-title">Claim Points</h2>
       <label className="field-label">Select User</label>
-      <div className="select-wrapper">
-        <select value={selectedUser} onChange={e=>setSelectedUser(e.target.value)} className="ui-select">
-          <option value="">Choose user…</option>
-          {users.map(u => <option key={u._id} value={u._id}>{u.name} ({u.totalPoints})</option>)}
-        </select>
-        <span className="select-caret" aria-hidden>▾</span>
-      </div>
+      <Dropdown
+        value={selectedUser}
+        onChange={setSelectedUser}
+        placeholder="Choose user…"
+        options={useMemo(()=> users.map(u => ({ value:u._id, label:u.name, meta:u.totalPoints })), [users])}
+        labelExtractor={(o)=> `${o.label} (${o.meta})`}
+      />
       <button disabled={!selectedUser || loading} onClick={onClaim} className="btn-claim">
         {loading? 'Claiming…' : 'Claim Random Points'}
       </button>
