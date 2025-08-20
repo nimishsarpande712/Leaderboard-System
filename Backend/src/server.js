@@ -4,7 +4,7 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import userRoutes from './routes/userRoutes.js';
-import { connectDB } from './config/db.js';
+import connectDB from './config/db.js';
 import { User } from './models/User.js';
 
 dotenv.config();
@@ -52,23 +52,10 @@ app.post('/api/users/:userId/claim', async (req, res, next) => {
   await sendLeaderboard();
 });
 
-// Support both MONGO_URI and MONGODB_URI env names
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI 
+const PORT = process.env.PORT || 4000; // Render supplies PORT
 
-// Guard: mongodb+srv URIs must NOT include an explicit port number
-if (MONGO_URI.startsWith('mongodb+srv://')) {
-  const hostPart = MONGO_URI.replace('mongodb+srv://','').split('/')[0]; // user:pass@host
-  const afterAt = hostPart.split('@').pop();
-  if(/:\d+/.test(afterAt)) {
-    console.error('\nInvalid MONGO_URI: mongodb+srv style connection strings cannot include a port. Remove ":<port>".');
-    process.exit(1);
-  }
-}
-
-const PORT = process.env.PORT || 4000;
-
-connectDB(MONGO_URI).then(() => {
-  server.listen(PORT, () => console.log('Server listening on', PORT));
+connectDB().then(() => {
+  server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 });
 
 export { io, sendLeaderboard };
