@@ -1,7 +1,7 @@
 <div align="center">
 
 # ⚡ Leaderboard System
-
+Live Deployed Link :- https://leaderboard-system-1-1j3g.onrender.com/?tab=live
 Modern real‑time leaderboard application.
 
 Node.js (Express + Socket.IO) • MongoDB (Atlas) • React + Vite • Pure CSS (glass / neon / responsive)  
