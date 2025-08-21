@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { api, SOCKET_ORIGIN } from './lib/api.js';
 import Leaderboard from './components/Leaderboard.jsx';
@@ -7,7 +7,14 @@ import HistoryPanel from './components/HistoryPanel.jsx';
 import './styles.css';
 
 // Base API paths now derive from api.base and expect explicit /api prefix in calls
-const socket = io(SOCKET_ORIGIN);
+const socket = io(SOCKET_ORIGIN, {
+  withCredentials: false,
+  transports: ['websocket','polling'],
+});
+socket.on('connect_error', (err)=>{
+  // eslint-disable-next-line no-console
+  console.error('Socket connect error:', err.message);
+});
 
 export default function App() {
   const [users, setUsers] = useState([]);
@@ -15,6 +22,8 @@ export default function App() {
   const [selectedUser, setSelectedUser] = useState('');
   const [awarded, setAwarded] = useState(null);
   const [loadingClaim, setLoadingClaim] = useState(false);
+  const [error, setError] = useState('');
+  const attemptedSeed = useRef(false);
   const initialPrimary = () => {
     const params = new URLSearchParams(window.location.search);
     return params.get('tab') || localStorage.getItem('primaryTab') || 'live';
@@ -25,14 +34,40 @@ export default function App() {
   const [settlementText, setSettlementText] = useState('');
 
   const fetchUsers = useCallback(async () => {
-  const data = await api.get('/api/users');
-  setUsers(data);
-  if (!selectedUser && data.length) setSelectedUser(data[0]._id);
+    try {
+      const data = await api.get('/api/users');
+      setUsers(data);
+      if (!selectedUser && data.length) setSelectedUser(data[0]._id);
+      // Auto-seed if completely empty (demo convenience)
+      if (data.length === 0 && !attemptedSeed.current) {
+        attemptedSeed.current = true;
+        try {
+          await api.post('/api/users/seed');
+          // refetch after seeding
+          const seeded = await api.get('/api/users');
+          setUsers(seeded);
+          if (!selectedUser && seeded.length) setSelectedUser(seeded[0]._id);
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn('Seeding failed:', e.message);
+        }
+      }
+    } catch (e) {
+      setError(e.message || 'Failed to load users');
+    }
   }, [selectedUser]);
 
   const fetchLeaderboard = useCallback(async () => {
-  const data = await api.get('/api/users/leaderboard/list');
-  setLeaderboard(data);
+    try {
+      const data = await api.get('/api/users/leaderboard/list');
+      if (Array.isArray(data) && data.length === 0) {
+        // eslint-disable-next-line no-console
+        console.warn('Leaderboard empty. Did you seed users?');
+      }
+      setLeaderboard(data);
+    } catch (e) {
+      setError(e.message || 'Failed to load leaderboard');
+    }
   }, []);
 
   useEffect(() => {
@@ -54,7 +89,8 @@ export default function App() {
     try {
   const res = await api.post(`/api/users/${selectedUser}/claim`);
   setAwarded(res.awarded);
-      fetchUsers(); // update totals maybe
+  fetchUsers();
+  fetchLeaderboard();
     } catch (e) {
   alert(e.message);
     } finally { setLoadingClaim(false); }
@@ -64,7 +100,7 @@ export default function App() {
     if(!name) return;
     try {
   await api.post(`/api/users`, { name });
-      fetchUsers();
+  fetchUsers();
     } catch (e) {
   alert(e.message);
     }
@@ -134,6 +170,11 @@ export default function App() {
         <div className="rewards-btn" role="button">Rewards</div>
       </div>
 
+      {error && (
+        <div className="global-error" role="alert">
+          <strong>Backend Error:</strong> {error}
+        </div>
+      )}
       <main className="grid-layout">
         <section className="panel leaderboard-panel" data-section="leaderboard">
           <Leaderboard data={leaderboard} currentUserId={selectedUser} />
